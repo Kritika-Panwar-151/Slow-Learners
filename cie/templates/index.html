@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIE Slow Learner Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #f5f3ee;
+      --paper:     #fffefa;
+      --ink:       #1a1714;
+      --ink-faint: #8c877e;
+      --rule:      #e0dbd3;
+      --red:       #c0392b;
+      --red-bg:    #fdf0ee;
+      --green:     #2d6a4f;
+      --green-bg:  #edf5f1;
+      --amber:     #b07d2a;
+      --amber-bg:  #fdf6e8;
+      --accent:    #2b4acb;
+      --accent-bg: #edf0fc;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'Syne', sans-serif;
+      --r:         10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      background: var(--ink);
+      color: var(--bg);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: #7b96ff; }
+    .header-sub {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: #8899cc;
+      margin-left: auto;
+    }
+
+    /* ─── Main ────────────────────────────────── */
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ─── Upload Card ─────────────────────────── */
+    .upload-card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      padding: 40px;
+      margin-bottom: 36px;
+    }
+
+    .upload-card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .upload-card p {
+      font-size: 13.5px;
+      color: var(--ink-faint);
+      margin-bottom: 28px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--rule);
+      border-radius: var(--r);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 36px; margin-bottom: 10px; }
+    .drop-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .drop-zone small { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+    .file-chosen {
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--accent);
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .threshold-label {
+      font-size: 13px;
+      color: var(--ink-faint);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .threshold-label input {
+      width: 56px;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-bg);
+      border: 1px solid #c0cbf5;
+      border-radius: 6px;
+      padding: 5px 8px;
+      outline: none;
+    }
+
+    .btn-analyze {
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      padding: 11px 28px;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: -0.2px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-analyze:hover  { background: #333; }
+    .btn-analyze:active { transform: scale(0.98); }
+
+    /* ─── Spinner ─────────────────────────────── */
+    .spinner-wrap {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--ink-faint);
+      font-family: var(--mono);
+    }
+    .spinner-wrap.show { display: flex; }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--rule);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Errors ──────────────────────────────── */
+    .errors-box {
+      background: var(--red-bg);
+      border: 1px solid #e8b4ad;
+      border-radius: var(--r);
+      padding: 14px 18px;
+      margin-bottom: 28px;
+      font-size: 13px;
+    }
+    .errors-box strong { color: var(--red); display: block; margin-bottom: 6px; }
+    .errors-box li { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); padding: 2px 0; list-style: none; }
+
+    /* ─── Stat Cards ──────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      padding: 20px 22px;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--ink-faint);
+      margin-bottom: 8px;
+    }
+    .stat-val {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1;
+    }
+    .stat-val.red   { color: var(--red); }
+    .stat-val.green { color: var(--green); }
+    .stat-val.amber { color: var(--amber); }
+
+    /* ─── Subject Breakdown ───────────────────── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ink-faint);
+      margin-bottom: 12px;
+    }
+
+    .subject-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+    .subject-row {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 16px;
+    }
+    .subject-row:hover { border-color: #c0cbf5; }
+    .sub-name { font-size: 14px; font-weight: 600; }
+    .sub-bar-wrap { width: 120px; height: 5px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+    .sub-bar { height: 100%; background: var(--red); border-radius: 3px; transition: width 0.8s ease; }
+    .sub-counts {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-faint);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .sub-counts strong { color: var(--red); }
+
+    /* ─── Student Table ───────────────────────── */
+    .table-wrap {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+
+    .table-header-bar {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .table-header-bar strong { font-size: 14px; flex: 1; }
+
+    .filter-input {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      color: var(--ink);
+      padding: 6px 12px;
+      border-radius: 6px;
+      outline: none;
+      width: 180px;
+    }
+    .filter-input:focus { border-color: var(--accent); }
+
+    .filter-select {
+      font-family: var(--sans);
+      font-size: 12px;
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      color: var(--ink);
+      padding: 6px 10px;
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: var(--bg);
+      font-size: 11px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--ink-faint);
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--rule);
+    }
+    tbody td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg); }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: 4px;
+    }
+    .tag-slow   { background: var(--red-bg);   color: var(--red);   }
+    .tag-ok     { background: var(--green-bg);  color: var(--green); }
+    .tag-absent { background: var(--amber-bg);  color: var(--amber); }
+
+    .mono-sm { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+    .tfoot-bar {
+      padding: 10px 16px;
+      border-top: 1px solid var(--rule);
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--ink-faint);
+    }
+
+    /* ─── Empty State ─────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--ink-faint);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.35; }
+    .empty h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--ink); }
+    .empty p  { font-size: 13px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">CIE<span>·</span>Analyzer</div>
+  <div class="header-sub">6th Sem · 2026 · Slow Learner Detection</div>
+</header>
+
+<main>
+
+  <!-- Upload Card -->
+  <div class="upload-card">
+    <h2>Upload CIE Report ZIP</h2>
+    <p>Drop a ZIP containing your <code>.xls</code> CIE report files. Students scoring below the threshold on CIE1 will be flagged.</p>
+
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+      {% csrf_token %}
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" name="file" id="fileInput" accept=".zip" onchange="onFile(this)" />
+        <div class="drop-icon">🗜️</div>
+        <h3>Click to browse or drag & drop</h3>
+        <small>Accepts .zip files only</small>
+        <div class="file-chosen" id="fileChosen"></div>
+      </div>
+
+      <div class="form-row">
+        <label class="threshold-label">
+          Flag students below
+          <input type="number" name="threshold" id="thresholdInput" value="50" min="1" max="100" />
+          % of CIE1 max
+        </label>
+        <button type="submit" class="btn-analyze" onclick="onSubmit()">Analyze →</button>
+        <div class="spinner-wrap" id="spinner">
+          <div class="spinner"></div> Processing…
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Errors -->
+  {% if errors %}
+  <div class="errors-box">
+    <strong>⚠️ {{ errors|length }} file{{ errors|length|pluralize }} could not be read</strong>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if subject_breakdown %}
+
+  <!-- Stat Cards -->
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-label">Slow Learners</div>
+      <div class="stat-val red">{{ total_slow }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Files Processed</div>
+      <div class="stat-val green">{{ processed }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Subjects</div>
+      <div class="stat-val amber">{{ subject_breakdown|length }}</div>
+    </div>
+  </div>
+
+  <!-- Subject Breakdown -->
+  <div class="section-title">Subject-wise Breakdown</div>
+  <div class="subject-grid">
+    {% for item in subject_breakdown %}
+    <div class="subject-row">
+      <div class="sub-name">{{ item.subject }}</div>
+      <div class="sub-bar-wrap">
+        <div class="sub-bar" data-pct="{{ item.pct }}" style="width:0%"></div>
+      </div>
+      <div class="sub-counts"><strong>{{ item.slow }}</strong> / {{ item.total }} slow</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Student Table -->
+  <div class="table-wrap">
+    <div class="table-header-bar">
+      <strong>All Students — CIE1</strong>
+      <input class="filter-input" type="text" placeholder="Search name / USN…" oninput="filterTable()" id="searchBox" />
+      <select class="filter-select" onchange="filterTable()" id="statusFilter">
+        <option value="">All</option>
+        <option value="slow">Slow Learner</option>
+        <option value="absent">Absent</option>
+        <option value="ok">On Track</option>
+      </select>
+      <select class="filter-select" onchange="filterTable()" id="subjectFilter">
+        <option value="">All Subjects</option>
+        {% for item in subject_breakdown %}
+        <option value="{{ item.subject }}">{{ item.subject }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>USN</th>
+            <th>Name</th>
+            <th>Subject</th>
+            <th>CIE1 Marks</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          {% for r in rows %}
+          <tr
+            data-subject="{{ r.subject }}"
+            data-status="{% if r.absent %}absent{% elif r.slow %}slow{% else %}ok{% endif %}"
+            data-q="{{ r.usn|lower }} {{ r.name|lower }}"
+          >
+            <td class="mono-sm">{{ forloop.counter }}</td>
+            <td class="mono-sm">{{ r.usn }}</td>
+            <td style="font-weight:500">{{ r.name }}</td>
+            <td class="mono-sm">{{ r.subject }}</td>
+            <td>
+              {% if r.absent %}
+                <span class="tag tag-absent">Absent</span>
+              {% else %}
+                <span class="mono-sm" style="{% if r.slow %}color:#c0392b;font-weight:600{% endif %}">
+                  {{ r.marks }} / {{ r.cmax }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.absent %}
+                <span class="tag tag-absent">Absent</span>
+              {% elif r.slow %}
+                <span class="tag tag-slow">Slow Learner</span>
+              {% else %}
+                <span class="tag tag-ok">On Track</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="tfoot-bar" id="rowCount">{{ rows|length }} students · threshold {{ threshold }}% of CIE1 max</div>
+  </div>
+
+  {% else %}
+  {% if not errors %}
+  <div class="empty">
+    <div class="empty-icon">📂</div>
+    <h3>No data yet</h3>
+    <p>Upload a ZIP file above to see the analysis.</p>
+  </div>
+  {% endif %}
+  {% endif %}
+
+</main>
+
+<script>
+/* Drag & drop */
+const zone = document.getElementById('dropZone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; showFile(f.name); }
+});
+
+function onFile(input) { if (input.files[0]) showFile(input.files[0].name); }
+function showFile(name) { document.getElementById('fileChosen').textContent = '📎 ' + name; }
+
+/* Spinner on submit */
+function onSubmit() {
+  const f = document.getElementById('fileInput');
+  if (f.files.length > 0) {
+    document.getElementById('spinner').classList.add('show');
+  }
+}
+
+/* Animate subject bars on load */
+document.querySelectorAll('.sub-bar').forEach(bar => {
+  const pct = parseFloat(bar.dataset.pct) || 0;
+  requestAnimationFrame(() => { bar.style.width = Math.min(pct, 100) + '%'; });
+});
+
+/* Table filter */
+function filterTable() {
+  const q    = document.getElementById('searchBox').value.toLowerCase();
+  const st   = document.getElementById('statusFilter').value;
+  const subj = document.getElementById('subjectFilter').value;
+  const rows = document.querySelectorAll('#tbody tr');
+  let n = 0;
+  rows.forEach(row => {
+    const ok = (!q    || row.dataset.q.includes(q))
+            && (!st   || row.dataset.status === st)
+            && (!subj || row.dataset.subject === subj);
+    row.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  document.getElementById('rowCount').textContent = `${n} of ${rows.length} students shown`;
+}
+</script>
+
+</body>
+</html>
